@@ -2,25 +2,25 @@
 
 # Download, Unzip, and Remove zip
 
-cd $ALFRED_ROOT/data
+# cd $ALFRED_ROOT/data
 
 # JSON files
-rm json_2.1.1_json.zip
-wget https://aka.ms/alfworld/json_2.1.1_json.zip
-unzip json_2.1.1_json.zip
-rm json_2.1.1_json.zip
+# rm json_2.1.1_json.zip
+# wget https://aka.ms/alfworld/json_2.1.1_json.zip
+# unzip json_2.1.1_json.zip
+# rm json_2.1.1_json.zip
 
 # PDDL files
-rm json_2.1.1_pddl.zip
-wget https://aka.ms/alfworld/json_2.1.1_pddl.zip
-unzip json_2.1.1_pddl.zip
-rm json_2.1.1_pddl.zip
+# rm json_2.1.1_pddl.zip
+# wget https://aka.ms/alfworld/json_2.1.1_pddl.zip
+# unzip json_2.1.1_pddl.zip
+# rm json_2.1.1_pddl.zip
 
 # TW-Game files
-rm json_2.1.1_tw-pddl.zip
-wget https://aka.ms/alfworld/json_2.1.1_tw-pddl.zip
-unzip json_2.1.1_tw-pddl.zip
-rm json_2.1.1_tw-pddl.zip
+# rm json_2.1.1_tw-pddl.zip
+# wget https://aka.ms/alfworld/json_2.1.1_tw-pddl.zip
+# unzip json_2.1.1_tw-pddl.zip
+# rm json_2.1.1_tw-pddl.zip
 
 # Pre-trained MaskRCNN model
 rm mrcnn.pth

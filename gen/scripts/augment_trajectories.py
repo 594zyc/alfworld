@@ -19,6 +19,7 @@ from utils.video_util import VideoSaver
 from utils.py_util import walklevel
 from env.thor_env import ThorEnv
 
+os.system("taskset -p 0xfffffffff %d" % os.getpid())
 
 TRAJ_DATA_JSON_FILENAME = "traj_data.json"
 AUGMENTED_TRAJ_DATA_JSON_FILENAME = "augmented_traj_data.json"
@@ -259,9 +260,10 @@ if os.path.isfile(cache_file):
         finished_jsons = json.load(f)
 else:
     finished_jsons = {'finished': []}
-
 # make a list of all the traj_data json files
+count = 0
 for dir_name, subdir_list, file_list in walklevel(args.data_path, level=2):
+    count +=1
     if "trial_" in dir_name:
         json_file = os.path.join(dir_name, TRAJ_DATA_JSON_FILENAME)
         if not os.path.isfile(json_file) or json_file in finished_jsons['finished']:

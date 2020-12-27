@@ -21,6 +21,8 @@ import sys
 sys.path.insert(0, os.environ["ALFRED_ROOT"])
 import gen.constants as constants
 
+os.system("taskset -p 0xffffffff %d" % os.getpid())
+
 MIN_PIXELS = 100
 
 OBJECTS_DETECTOR = constants.OBJECTS_DETECTOR
@@ -60,18 +62,30 @@ class AlfredDataset(object):
             bathroom = list(sorted(os.listdir(bathroom_path)))
 
             min_size = min(len(kitchen), len(living), len(bedroom), len(bathroom))
-            kitchen = [os.path.join(kitchen_path, f) for f in random.sample(kitchen, int(min_size*self.args.kitchen_factor))]
-            living = [os.path.join(living_path, f) for f in random.sample(living, int(min_size*self.args.living_factor))]
-            bedroom = [os.path.join(bedroom_path, f) for f in random.sample(bedroom, int(min_size*self.args.bedroom_factor))]
-            bathroom = [os.path.join(bathroom_path, f) for f in random.sample(bathroom, int(min_size*self.args.bathroom_factor))]
+            if not hasattr(self.args, 'test_num'):
+                kitchen = [os.path.join(kitchen_path, f) for f in random.sample(kitchen, int(min_size*self.args.kitchen_factor))]
+                living = [os.path.join(living_path, f) for f in random.sample(living, int(min_size*self.args.living_factor))]
+                bedroom = [os.path.join(bedroom_path, f) for f in random.sample(bedroom, int(min_size*self.args.bedroom_factor))]
+                bathroom = [os.path.join(bathroom_path, f) for f in random.sample(bathroom, int(min_size*self.args.bathroom_factor))]
+            else:
+                kitchen = [os.path.join(kitchen_path, f) for f in kitchen[:self.args.test_num]]
+                living = [os.path.join(living_path, f) for f in living[:self.args.test_num]]
+                bedroom = [os.path.join(bedroom_path, f) for f in bedroom[:self.args.test_num]]
+                bathroom = [os.path.join(bathroom_path, f) for f in bathroom[:self.args.test_num]]
 
             self.imgs = kitchen + living + bedroom + bathroom
             self.masks = [f.replace("images", "masks") for f in self.imgs]
             self.metas = [f.replace("images", "meta").replace(".png", ".json") for f in self.imgs]
         else:
-            self.imgs = [os.path.join(root, "images", f) for f in list(sorted(os.listdir(os.path.join(root, "images"))))]
-            self.masks = [os.path.join(root, "masks", f) for f in list(sorted(os.listdir(os.path.join(root, "masks"))))]
-            self.metas = [os.path.join(root, "meta", f) for f in list(sorted(os.listdir(os.path.join(root, "meta"))))]
+            self.imgs, self.masks, self.metas = [], [], []
+            num = self.args.test_num
+            for scene in ['kitchen', 'living', 'bedroom', 'bathroom']:
+            # for scene in ['kitchen']:
+                print('collecting scene: ', scene)
+                self.imgs += [os.path.join(root, scene, "images", f) for f in list(sorted(os.listdir(os.path.join(root, scene, "images"))))[:num]]
+            self.masks = [f.replace("images", "masks") for f in self.imgs]
+            self.metas = [f.replace("images", "meta").replace(".png", ".json") for f in self.imgs]
+            print(len(self.imgs))
 
     def __getitem__(self, idx):
         # load images ad masks
@@ -81,10 +95,20 @@ class AlfredDataset(object):
 
         # print("Opening: %s" % (self.imgs[idx]))
 
-        with open(meta_path, 'r') as f:
-            color_to_object = json.load(f)
+        try:
+            with open(meta_path, 'r') as f:
+                color_to_object = json.load(f)
+        except:
+            print(meta_path)
+            return None, None
+            # quit()
 
-        img = Image.open(img_path).convert("RGB")
+        # print(img_path)
+        try:
+            img = Image.open(img_path).convert("RGB")
+        except:
+            # print(img_path)
+            return None, None
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance
         # with 0 being background
@@ -179,26 +203,26 @@ def main(args):
     num_classes = len(get_object_classes(args.object_types))+1
     # use our dataset and defined transformations
     dataset = AlfredDataset(args.data_path, get_transform(train=True), args)
-    dataset_test = AlfredDataset(args.data_path, get_transform(train=False), args)
+    # dataset_test = AlfredDataset(args.data_path, get_transform(train=False), args)
 
     # split the dataset in train and test set
     # indices = torch.randperm(len(dataset)).tolist()
     indices = list(range(len(dataset)))
-    dataset = torch.utils.data.Subset(dataset, indices[:-4000])
-    dataset_test = torch.utils.data.Subset(dataset_test, indices[-4000:])
+    dataset = torch.utils.data.Subset(dataset, indices)
+    # dataset_test = torch.utils.data.Subset(dataset_test, indices[-4000:])
 
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=args.batch_size, shuffle=True, num_workers=4,
+        dataset, batch_size=args.batch_size, shuffle=True, num_workers=6,
         collate_fn=utils.collate_fn)
 
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=args.batch_size, shuffle=False, num_workers=4,
-        collate_fn=utils.collate_fn)
+    # data_loader_test = torch.utils.data.DataLoader(
+    #     dataset_test, batch_size=args.batch_size, shuffle=False, num_workers=4,
+    #     collate_fn=utils.collate_fn)
 
     # get the model using our helper function
     if args.load_model:
-        model = load_pretrained_model(args.load_model)
+        model = load_pretrained_model(args.load_model, num_classes)
     else:
         model = get_model_instance_segmentation(num_classes)
 
@@ -215,9 +239,10 @@ def main(args):
                                                    gamma=0.1)
 
     # let's train it for 10 epochs
-    num_epochs = 10
+    num_epochs = 6
 
-    for epoch in range(num_epochs):
+    # for epoch in range(num_epochs):
+    for epoch in [6,7,8,9,10]:
         # train for one epoch, printing every 10 iterations
         train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
         # update the learning rate
@@ -249,4 +274,6 @@ if __name__ == "__main__":
 
     parser.add_argument("--debug", action='store_true')
     args = parser.parse_args()
+    if not os.path.exists(args.save_path):
+        os.makedirs(args.save_path)
     main(args)
